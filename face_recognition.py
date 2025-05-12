@@ -182,15 +182,113 @@ def plot_roc_curve(fpr_list, tpr_list):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+    import os
+import cv2
+import numpy as np
+import matplotlib.pyplot as plt
+
+# (Include your helper functions: _to_uint8, detect_faces, read_images, compute_pca,
+# project_face, euclidean_distance, and face_recognition from your code above.)
+
+# ------------------------------------------------------------------------------
+# New function: recognize_query_image(...)
+# ------------------------------------------------------------------------------
+def recognize_query_image(query_img_path, train_images, train_labels, mean_face, eigenvectors, threshold, label_names, image_size=(100, 100)):
+    """
+    Reads a query image, detects (and crops) its face, projects it into the PCA
+    subspace, and then finds the closest matching training image.
+    It then overlays the predicted label on the query image and, if a match is found,
+    displays both the query and match side-by-side.
+    """
+    # Read the query image in grayscale
+    raw_img = cv2.imread(query_img_path, cv2.IMREAD_GRAYSCALE)
+    if raw_img is None:
+        print("Could not read query image.")
+        return
+
+    # Detect face(s) in the query image
+    query_faces = detect_faces([raw_img], extract_all_faces=False)
+    if len(query_faces) == 0:
+        print("No face detected in the query image.")
+        return
+
+    # Use the largest/first detected face and resize it.
+    query_face = query_faces[0]
+    query_face_resized = cv2.resize(query_face, image_size)
+
+    # Flatten the query face for processing.
+    query_flat = query_face_resized.flatten().astype("float32")
+
+    # Project the query face onto the PCA subspace.
+    query_projection = project_face(query_flat, mean_face, eigenvectors)
+
+    # Precompute training projections if not already done.
+    train_projections = [project_face(t_face, mean_face, eigenvectors) for t_face in train_images]
+
+    # Compute distances between query projection and all training projections.
+    dists = [euclidean_distance(query_projection, proj) for proj in train_projections]
+    min_idx = np.argmin(dists)
+    min_dist = dists[min_idx]
+
+    # Decide whether we recognize the face based on the threshold.
+    if min_dist < threshold:
+        predicted_label = train_labels[min_idx]
+        predicted_name = label_names[predicted_label]
+        # Get the matching training image for display (reshape as needed).
+        match_flat = train_images[min_idx]
+        match_img = match_flat.reshape(image_size)
+    else:
+        predicted_label = -1
+        predicted_name = "Unknown"
+        match_img = None
+
+    # Prepare the query image for visualization (convert gray to BGR for colored text)
+    query_disp = cv2.cvtColor(query_face_resized, cv2.COLOR_GRAY2BGR)
+    cv2.putText(query_disp, predicted_name, (5, 20),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    if match_img is not None:
+        match_disp = cv2.cvtColor(match_img, cv2.COLOR_GRAY2BGR)
+        cv2.putText(match_disp, predicted_name, (5, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
+
+        # Combine query and match images side-by-side
+        combined = np.hstack((query_disp, match_disp))
+        cv2.imshow("Query (left) and Best Match (right)", combined)
+        cv2.imwrite("query_and_match.png", combined)  # Optionally save to file.
+    else:
+        cv2.imshow("Query Face", query_disp)
+        cv2.imwrite("query_unknown.png", query_disp)
+
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+# ------------------------------------------------------------------------------
+# Example usage:
+# ------------------------------------------------------------------------------
+# Assume that you have already loaded your training and testing data, and computed PCA, for example:
+#
+# train_path = "orl_faces_train"
+# train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=True)
+#
+# num_components = 100
+# mean_face, eigenvalues, eigenvectors = compute_pca(train_images, num_components)
+# threshold = 4000   # (or an appropriately tuned value)
+#
+# Now, specify the path to a new query image:
+
+
+
 dataset_folder = "dataset"
 
 # Load training data from the training folder (with face detection enabled)
 train_path = "orl_faces_train"
-train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=True)
+train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=False)
 
 # Load testing data from the test folder (with face detection enabled)
 test_path = "orl_faces_test"
-test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=True)
+test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=False)
 
 # Compute PCA on the training images
 num_components = 100
@@ -203,12 +301,19 @@ accuracy, distances, predicted_labels = face_recognition(
     train_images, train_labels, test_images, test_labels, mean_face, eigenvectors, threshold
 )
 print("Recognition Accuracy =", accuracy)
+
+query_image_path = "orl_faces_test\-1\\0000_02176.pgm"  # <-- Change this to your test image file
+
+# Call the function to recognize the query image.
+recognize_query_image(query_image_path, train_images, train_labels, mean_face, eigenvectors, threshold, train_label_names, image_size=(100, 100))
+
 # Compute and plot the ROC curve
 min_thr = np.min(distances)
 max_thr = np.max(distances)
 thresholds = np.linspace(min_thr, max_thr, num=100)
 tpr_list, fpr_list = compute_roc(distances, test_labels, thresholds)
 plot_roc_curve(fpr_list, tpr_list)
+
 plt.figure(figsize=(8, 6))
 plt.plot(fpr_list, tpr_list, marker='o', color='blue', linewidth=2, label='ROC Curve')
 plt.plot([0, 1], [0, 1], 'r--', label='Chance')

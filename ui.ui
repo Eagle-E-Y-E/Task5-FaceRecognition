@@ -680,7 +680,7 @@ border-radius: 5px;
                           <number>1</number>
                          </property>
                          <property name="maximum">
-                          <number>10</number>
+                          <number>1000</number>
                          </property>
                          <property name="orientation">
                           <enum>Qt::Horizontal</enum>
@@ -716,10 +716,10 @@ border-radius: 5px;
                        <item>
                         <widget class="QSlider" name="threshold_slider">
                          <property name="minimum">
-                          <number>1</number>
+                          <number>4000</number>
                          </property>
                          <property name="maximum">
-                          <number>100</number>
+                          <number>10000</number>
                          </property>
                          <property name="orientation">
                           <enum>Qt::Horizontal</enum>

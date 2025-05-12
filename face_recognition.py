@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from faceDetection import detect_faces
+from pca import PCA_
 # ----------------------------------------------------
 
 def read_images(dataset_path, image_size=(100, 100), detect=True):
@@ -98,7 +99,7 @@ def euclidean_distance(a, b):
     """Compute Euclidean distance between two vectors."""
     return np.linalg.norm(a - b)
 
-def face_recognition(train_images, train_labels, test_images, test_labels, mean_face, eigenvectors, threshold):
+def face_recognition(train_images, train_labels, test_images, test_labels, pca, threshold):
     """
     Recognize faces by projecting them onto the PCA subspace and comparing.
     A test image is assigned the label of the closest training image, provided
@@ -108,11 +109,14 @@ def face_recognition(train_images, train_labels, test_images, test_labels, mean_
     distances = []
     labels_pred = []
     
-    # Precompute projections for training images.
-    train_projections = [project_face(face, mean_face, eigenvectors) for face in train_images]
+    # Project training images using the PCA transform method
+    train_projections = pca.transform(train_images)
     
     for i, test_face in enumerate(test_images):
-        proj_test = project_face(test_face, mean_face, eigenvectors)
+        # Project test face using the PCA transform method
+        proj_test = pca.transform(test_face.reshape(1, -1)).flatten()
+        
+        # Compute distances between the test projection and all training projections
         dists = [euclidean_distance(proj_test, train_proj) for train_proj in train_projections]
         min_index = np.argmin(dists)
         min_dist = dists[min_index]
@@ -182,39 +186,95 @@ def plot_roc_curve(fpr_list, tpr_list):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-dataset_folder = "dataset"
+def recognize_single_face(face_img, train_images, train_labels, pca, threshold, label_names=None):
 
-# Load training data from the training folder (with face detection enabled)
-train_path = "orl_faces_train"
-train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=True)
+    # flatten img
+    if len(face_img.shape) > 1:
+        face_img = face_img.flatten()
+    
+    # Project training images
+    train_projections = pca.transform(train_images)
+    
+    # Project the single test face
+    proj_test = pca.transform(face_img.reshape(1, -1)).flatten()
+    
+    # Compute distances to all training faces
+    dists = [euclidean_distance(proj_test, train_proj) for train_proj in train_projections]
+    min_index = np.argmin(dists)
+    min_dist = dists[min_index]
+    
+    # Determine identity based on threshold
+    if min_dist < threshold:
+        predicted_label = train_labels[min_index]
+    else:
+        predicted_label = -1  # Unknown face
+    
+    # Get subject name if label_names is provided
+    subject_name = None
+    if label_names is not None and predicted_label in label_names:
+        subject_name = label_names[predicted_label]
+    
+    return predicted_label, subject_name, min_dist
 
-# Load testing data from the test folder (with face detection enabled)
-test_path = "orl_faces_test"
-test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=True)
+def recognize_face(image, num_pca, threshold):
+    train_path = "orl_faces_train"
+    image_size = (100, 100)  # Define this once to ensure consistency
+    train_images, train_labels, train_label_names = read_images(train_path, image_size=image_size, detect=False)
 
-# Compute PCA on the training images
-num_components = 100
-mean_face, eigenvalues, eigenvectors = compute_pca(train_images, num_components)
+    # Make sure the input image is resized to match the training image dimensions
+    if image.shape != image_size:
+        image = cv2.resize(image, image_size)
 
-# Set a recognition threshold (tuning may be required based on your data)
-threshold = 4000
+    # Replace the PCA computation
+    pca = PCA_(num_components=num_pca)
+    pca.fit(train_images)
+    print("PCA fitted with", num_pca, "components")
+    predicted_label, subject_name, min_dist = recognize_single_face(image, train_images, train_labels, pca, threshold, train_label_names)
+    print("Predicted label:", predicted_label)
+    print("Predicted subject name:", subject_name)
+    print("Minimum distance:", min_dist)
+    
+    return predicted_label, subject_name, min_dist
 
-accuracy, distances, predicted_labels = face_recognition(
-    train_images, train_labels, test_images, test_labels, mean_face, eigenvectors, threshold
-)
-print("Recognition Accuracy =", accuracy)
-# Compute and plot the ROC curve
-min_thr = np.min(distances)
-max_thr = np.max(distances)
-thresholds = np.linspace(min_thr, max_thr, num=100)
-tpr_list, fpr_list = compute_roc(distances, test_labels, thresholds)
-plot_roc_curve(fpr_list, tpr_list)
-plt.figure(figsize=(8, 6))
-plt.plot(fpr_list, tpr_list, marker='o', color='blue', linewidth=2, label='ROC Curve')
-plt.plot([0, 1], [0, 1], 'r--', label='Chance')
-plt.title("ROC Curve")
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.grid(True)
-plt.legend()
-plt.show()
+image = cv2.imread("orl_faces_test/s1/8.pgm", cv2.IMREAD_GRAYSCALE)
+recognize_face(image, num_pca=100, threshold=4000)
+
+
+# dataset_folder = "dataset"
+
+# # Load training data from the training folder (with face detection enabled)
+# train_path = "orl_faces_train"
+# train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=True)
+
+# # Load testing data from the test folder (with face detection enabled)
+# test_path = "orl_faces_test"
+# test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=True)
+
+# # Replace the PCA computation
+# pca = PCA_(num_components=100)
+# pca.fit(train_images)
+
+# # Set a recognition threshold (tuning may be required based on your data)
+# threshold = 4000
+
+# # Call updated face_recognition function
+# accuracy, distances, predicted_labels = face_recognition(
+#     train_images, train_labels, test_images, test_labels, pca, threshold
+# )
+# print("Recognition Accuracy =", accuracy)
+
+# # Compute and plot the ROC curve
+# min_thr = np.min(distances)
+# max_thr = np.max(distances)
+# thresholds = np.linspace(min_thr, max_thr, num=100)
+# tpr_list, fpr_list = compute_roc(distances, test_labels, thresholds)
+# plot_roc_curve(fpr_list, tpr_list)
+# plt.figure(figsize=(8, 6))
+# plt.plot(fpr_list, tpr_list, marker='o', color='blue', linewidth=2, label='ROC Curve')
+# plt.plot([0, 1], [0, 1], 'r--', label='Chance')
+# plt.title("ROC Curve")
+# plt.xlabel("False Positive Rate")
+# plt.ylabel("True Positive Rate")
+# plt.grid(True)
+# plt.legend()
+# plt.show()

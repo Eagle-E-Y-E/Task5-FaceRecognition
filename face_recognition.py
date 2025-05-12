@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from faceDetection import detect_faces
 # ----------------------------------------------------
 
-def read_images(dataset_path, image_size=(100, 100), detect=True):
+def read_images(dataset_path, image_size=(100, 100)):
     """
     Read images from dataset_path where each subfolder corresponds to a subject.
     If detect==True, each image is processed through a face detector.
@@ -37,18 +37,9 @@ def read_images(dataset_path, image_size=(100, 100), detect=True):
                 raw_img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
                 if raw_img is None:
                     continue
-
-                # If detection is enabled, crop the face before resizing.
-                if detect:
-                    faces = detect_faces([raw_img], extract_all_faces=False)
-                    if len(faces) == 0:
-                        continue  # no face found; skip image
-                    face = faces[0]
-                else:
-                    face = raw_img
                 
                 # Resize the face to the desired size and flatten it.
-                face_resized = cv2.resize(face, image_size)
+                face_resized = cv2.resize(raw_img, image_size)
                 images.append(face_resized.flatten())
                 labels.append(subject_label)
     print(f"Loaded a total of {len(images)} images from {dataset_path}")
@@ -197,24 +188,37 @@ def recognize_query_image(query_img_path, train_images, train_labels, mean_face,
     """
     Reads a query image, detects (and crops) its face, projects it into the PCA
     subspace, and then finds the closest matching training image.
-    It then overlays the predicted label on the query image and, if a match is found,
-    displays both the query and match side-by-side.
+    It then overlays labels on the query image and the matching training image,
+    displaying them side-by-side.
+    
+    The left image displays its original query label (inferred from its folder path),
+    and the right image displays its original training label.
     """
-    # Read the query image in grayscale
+    # Read the query image in grayscale.
     raw_img = cv2.imread(query_img_path, cv2.IMREAD_GRAYSCALE)
     if raw_img is None:
         print("Could not read query image.")
         return
 
-    # Detect face(s) in the query image
-    query_faces = detect_faces([raw_img], extract_all_faces=False)
+    # Extract original query label from the query image path.
+    # Assumes the directory name where the file resides is its label.
+    query_label = os.path.basename(os.path.dirname(query_img_path))
+    
+    # Detect face(s) in the query image (pass the image array directly)
+    query_faces = detect_faces(raw_img)
     if len(query_faces) == 0:
         print("No face detected in the query image.")
         return
 
-    # Use the largest/first detected face and resize it.
-    query_face = query_faces[0]
-    query_face_resized = cv2.resize(query_face, image_size)
+    # Use the first detected face (you can choose the largest if needed).
+    # Each element in query_faces is a bounding box: (x, y, w, h)
+    x, y, w, h = query_faces[0]
+    
+    # Crop the face from the raw image using the bounding box coordinates.
+    face_crop = raw_img[y:y+h, x:x+w]
+    
+    # Resize the cropped face to the desired size for PCA processing.
+    query_face_resized = cv2.resize(face_crop, image_size)
 
     # Flatten the query face for processing.
     query_flat = query_face_resized.flatten().astype("float32")
@@ -225,13 +229,14 @@ def recognize_query_image(query_img_path, train_images, train_labels, mean_face,
     # Precompute training projections if not already done.
     train_projections = [project_face(t_face, mean_face, eigenvectors) for t_face in train_images]
 
-    # Compute distances between query projection and all training projections.
+    # Compute distances between the query projection and all training projections.
     dists = [euclidean_distance(query_projection, proj) for proj in train_projections]
     min_idx = np.argmin(dists)
     min_dist = dists[min_idx]
 
     # Decide whether we recognize the face based on the threshold.
     if min_dist < threshold:
+        # The "predicted" training label is the original label for that training image.
         predicted_label = train_labels[min_idx]
         predicted_name = label_names[predicted_label]
         # Get the matching training image for display (reshape as needed).
@@ -244,15 +249,17 @@ def recognize_query_image(query_img_path, train_images, train_labels, mean_face,
 
     # Prepare the query image for visualization (convert gray to BGR for colored text)
     query_disp = cv2.cvtColor(query_face_resized, cv2.COLOR_GRAY2BGR)
-    cv2.putText(query_disp, predicted_name, (5, 20),
+    # Overlay the original label for the query image.
+    cv2.putText(query_disp, f"{query_label}", (5, 20),
                 cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
 
     if match_img is not None:
         match_disp = cv2.cvtColor(match_img, cv2.COLOR_GRAY2BGR)
-        cv2.putText(match_disp, predicted_name, (5, 20),
+        # Overlay the original label for the training image.
+        cv2.putText(match_disp, f"{predicted_name}", (5, 20),
                     cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
 
-        # Combine query and match images side-by-side
+        # Combine query and match images side-by-side.
         combined = np.hstack((query_disp, match_disp))
         cv2.imshow("Query (left) and Best Match (right)", combined)
         cv2.imwrite("query_and_match.png", combined)  # Optionally save to file.
@@ -262,6 +269,7 @@ def recognize_query_image(query_img_path, train_images, train_labels, mean_face,
 
     cv2.waitKey(0)
     cv2.destroyAllWindows()
+
 
 
 # ------------------------------------------------------------------------------
@@ -284,11 +292,11 @@ dataset_folder = "dataset"
 
 # Load training data from the training folder (with face detection enabled)
 train_path = "orl_faces_train"
-train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=False)
+train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100))
 
 # Load testing data from the test folder (with face detection enabled)
 test_path = "orl_faces_test"
-test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=False)
+test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100))
 
 # Compute PCA on the training images
 num_components = 100

@@ -1,5 +1,6 @@
 import cv2
 import matplotlib
+import numpy as np
 matplotlib.use('Agg')
 
 def read_rgb(image_path, gray=False, normalize=False):
@@ -11,10 +12,26 @@ def read_rgb(image_path, gray=False, normalize=False):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return img
 
-def detect_faces(image_path):
-    # Use a grayscale image for detection.
-    gray_image = read_rgb(image_path, gray=True, normalize=False)
-    # Load the pre-trained classifier for faces
+def detect_faces(image_input):
+    """
+    Detect faces in an image from either a file path or an image array.
+    """
+    # If the input is a string, assume it's a file path.
+    if isinstance(image_input, str):
+        gray_image = read_rgb(image_input, gray=True, normalize=False)
+    # If the input is a numpy array, assume it's already loaded.
+    elif isinstance(image_input, np.ndarray):
+        # If the image is colored, convert it to grayscale.
+        if len(image_input.shape) == 3 and image_input.shape[2] == 3:
+            gray_image = cv2.cvtColor(image_input, cv2.COLOR_BGR2GRAY)
+        else:
+            # It is presumably already grayscale.
+            gray_image = image_input
+    else:
+        raise ValueError("Input must be a file path (str) or an image array (numpy.ndarray).")
+    
+    
+    # Load the pre-trained classifier for faces.
     face_cascade = cv2.CascadeClassifier(
         cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     )

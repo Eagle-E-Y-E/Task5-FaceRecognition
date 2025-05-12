@@ -11,6 +11,7 @@ import joblib
 from FINAL import recognize_faces
 
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
@@ -47,22 +48,20 @@ class MainWindow(QMainWindow):
 
 
     def handle_apply(self):
-        pca = joblib.load("model/pca_model.joblib")
-        clf = joblib.load("model/svm_model.joblib")
-        le = joblib.load("model/label_encoder.joblib")
-        img_pca = pca.transform(self.input_image.reshape(1, -1))
-        pred_enc = clf.predict(img_pca)
-        pred_label = le.inverse_transform(pred_enc)[0]
-        print("Predicted person:", pred_label)
+        print("Apply button clicked")
         
-        self.output_img = cv2.imread(self.img_path) 
-        ## edit here to draw  rectangle based on faced and show the predicted label on it
-        display_image_Graphics_scene(self.output_img1_GV, self.output_img)
+        # print("Predicted person:", pred_label)
+        # face_recognition_(query_image_path=self.img_path)
+        # self.output_img = cv2.imread(self.img_path) 
+        # ## edit here to draw  rectangle based on faced and show the predicted label on it
+        # display_image_Graphics_scene(self.output_img1_GV, self.output_img)
 
     def handle_recognize(self):
-        recognize_faces(single_img_path=self.img_path,
+        pred,dist = recognize_faces(single_img_path=self.img_path,
                         num_components=self.num_pca_slider.value(),
                         threshold=self.threshold_slider.value())
+        self.reult_label.setText(pred)
+        self.distance_label.setText(f"distance: {dist:.2f}")
         
 
                 

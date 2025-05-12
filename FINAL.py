@@ -84,4 +84,4 @@ def recognize_faces(
         print(f"Predicted label: {pred}, Distance: {dist}")
         return pred, dist
 
-    return None
+    return 

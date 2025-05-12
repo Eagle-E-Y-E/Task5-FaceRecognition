@@ -57,11 +57,20 @@ class MainWindow(QMainWindow):
         # display_image_Graphics_scene(self.output_img1_GV, self.output_img)
 
     def handle_recognize(self):
-        pred,dist = recognize_faces(single_img_path=self.img_path,
-                        num_components=self.num_pca_slider.value(),
-                        threshold=self.threshold_slider.value())
+        # Get prediction, distance, and the similar training image
+        pred, dist, sim_img = recognize_faces(
+            single_img_path=self.img_path,
+            num_components=self.num_pca_slider.value(),
+            threshold=self.threshold_slider.value()
+        )
         self.reult_label.setText(pred)
-        self.distance_label.setText(f"distance: {dist:.2f}")
+        self.distance_label.setText(f"Distance: {dist:.2f}")
+        
+        # Display the similar image if available.
+        # Here we assume you have a function to display images in your GUI.
+        if sim_img is not None:
+            display_image_Graphics_scene(self.output_img_Rec, sim_img)
+
         
 
                 

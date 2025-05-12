@@ -6,9 +6,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import Qt
 import cv2
 from utils import load_pixmap_to_label, display_image_Graphics_scene, enforce_slider_step, show_histogram_on_label, clear_graphics_view
-import joblib
-# from face_recognition import recognize_single_face
-from FINAL import recognize_faces
+from faceRecognition import recognize_faces
 from faceDetection import draw_faces
 
 
@@ -27,7 +25,7 @@ class MainWindow(QMainWindow):
             event, self.input_img_Rec)
         
         # connect buttons
-        self.apply_btn.clicked.connect(self.handle_apply)
+        self.apply_btn.clicked.connect(self.handle_detect)
         self.apply_btn_Rec.clicked.connect(self.handle_recognize)
 
         # sliders
@@ -48,7 +46,7 @@ class MainWindow(QMainWindow):
             
 
 
-    def handle_apply(self):
+    def handle_detect(self):
         print("Apply button clicked")
         annotated_img = draw_faces(self.img_path)
         

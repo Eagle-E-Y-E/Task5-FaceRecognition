@@ -51,7 +51,7 @@ def recognize_faces(
             similar_img = cv2.resize(similar_img, image_size)
         else:
             pred_label = "unknown"
-            similar_img = None
+            similar_img = cv2.imread("images/unknown.jpg")
         
         return pred_label, min_dist, similar_img
 

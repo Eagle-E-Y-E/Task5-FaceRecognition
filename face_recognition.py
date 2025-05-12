@@ -182,10 +182,6 @@ def plot_roc_curve(fpr_list, tpr_list):
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
-    import os
-import cv2
-import numpy as np
-import matplotlib.pyplot as plt
 
 # (Include your helper functions: _to_uint8, detect_faces, read_images, compute_pca,
 # project_face, euclidean_distance, and face_recognition from your code above.)
@@ -263,63 +259,39 @@ def recognize_query_image(query_img_path, train_images, train_labels, mean_face,
     cv2.waitKey(0)
     cv2.destroyAllWindows()
 
+def face_recognition_(query_image_path="Enstien.png", train_path = "orl_faces_train", test_path = "orl_faces_test",  num_components = 100):
+    # Load training data from the training folder (with face detection enabled)
+    train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=False)
+    # Load testing data from the test folder (with face detection enabled)
+    test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=False)
 
-# ------------------------------------------------------------------------------
-# Example usage:
-# ------------------------------------------------------------------------------
-# Assume that you have already loaded your training and testing data, and computed PCA, for example:
-#
-# train_path = "orl_faces_train"
-# train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=True)
-#
-# num_components = 100
-# mean_face, eigenvalues, eigenvectors = compute_pca(train_images, num_components)
-# threshold = 4000   # (or an appropriately tuned value)
-#
-# Now, specify the path to a new query image:
+    # Compute PCA on the training images
+    mean_face, eigenvalues, eigenvectors = compute_pca(train_images, num_components)
 
+    # Set a recognition threshold (tuning may be required based on your data)
+    threshold = 4000
 
+    accuracy, distances, predicted_labels = face_recognition(
+        train_images, train_labels, test_images, test_labels, mean_face, eigenvectors, threshold
+    )
+    print("Recognition Accuracy =", accuracy)
 
-dataset_folder = "dataset"
+    # Call the function to recognize the query image.
+    recognize_query_image(query_image_path, train_images, train_labels, mean_face, eigenvectors, threshold, train_label_names, image_size=(100, 100))
 
-# Load training data from the training folder (with face detection enabled)
-train_path = "orl_faces_train"
-train_images, train_labels, train_label_names = read_images(train_path, image_size=(100, 100), detect=False)
+    # Compute and plot the ROC curve
+    min_thr = np.min(distances)
+    max_thr = np.max(distances)
+    thresholds = np.linspace(min_thr, max_thr, num=100)
+    tpr_list, fpr_list = compute_roc(distances, test_labels, thresholds)
+    plot_roc_curve(fpr_list, tpr_list)
 
-# Load testing data from the test folder (with face detection enabled)
-test_path = "orl_faces_test"
-test_images, test_labels, test_label_names = read_images(test_path, image_size=(100, 100), detect=False)
-
-# Compute PCA on the training images
-num_components = 100
-mean_face, eigenvalues, eigenvectors = compute_pca(train_images, num_components)
-
-# Set a recognition threshold (tuning may be required based on your data)
-threshold = 4000
-
-accuracy, distances, predicted_labels = face_recognition(
-    train_images, train_labels, test_images, test_labels, mean_face, eigenvectors, threshold
-)
-print("Recognition Accuracy =", accuracy)
-
-query_image_path = "orl_faces_test\-1\\0000_02176.pgm"  # <-- Change this to your test image file
-
-# Call the function to recognize the query image.
-recognize_query_image(query_image_path, train_images, train_labels, mean_face, eigenvectors, threshold, train_label_names, image_size=(100, 100))
-
-# Compute and plot the ROC curve
-min_thr = np.min(distances)
-max_thr = np.max(distances)
-thresholds = np.linspace(min_thr, max_thr, num=100)
-tpr_list, fpr_list = compute_roc(distances, test_labels, thresholds)
-plot_roc_curve(fpr_list, tpr_list)
-
-plt.figure(figsize=(8, 6))
-plt.plot(fpr_list, tpr_list, marker='o', color='blue', linewidth=2, label='ROC Curve')
-plt.plot([0, 1], [0, 1], 'r--', label='Chance')
-plt.title("ROC Curve")
-plt.xlabel("False Positive Rate")
-plt.ylabel("True Positive Rate")
-plt.grid(True)
-plt.legend()
-plt.show()
+    plt.figure(figsize=(8, 6))
+    plt.plot(fpr_list, tpr_list, marker='o', color='blue', linewidth=2, label='ROC Curve')
+    plt.plot([0, 1], [0, 1], 'r--', label='Chance')
+    plt.title("ROC Curve")
+    plt.xlabel("False Positive Rate")
+    plt.ylabel("True Positive Rate")
+    plt.grid(True)
+    plt.legend()
+    plt.show()

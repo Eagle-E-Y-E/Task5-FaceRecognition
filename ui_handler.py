@@ -9,6 +9,7 @@ from utils import load_pixmap_to_label, display_image_Graphics_scene, enforce_sl
 import joblib
 # from face_recognition import recognize_single_face
 from FINAL import recognize_faces
+from faceDetection import draw_faces
 
 
 
@@ -49,12 +50,9 @@ class MainWindow(QMainWindow):
 
     def handle_apply(self):
         print("Apply button clicked")
+        annotated_img = draw_faces(self.img_path)
         
-        # print("Predicted person:", pred_label)
-        # face_recognition_(query_image_path=self.img_path)
-        # self.output_img = cv2.imread(self.img_path) 
-        # ## edit here to draw  rectangle based on faced and show the predicted label on it
-        # display_image_Graphics_scene(self.output_img1_GV, self.output_img)
+        display_image_Graphics_scene(self.output_img1_GV, annotated_img)
 
     def handle_recognize(self):
         # Get prediction, distance, and the similar training image

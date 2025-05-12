@@ -6,7 +6,7 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import Qt
 import cv2
 from utils import load_pixmap_to_label, display_image_Graphics_scene, enforce_slider_step, show_histogram_on_label, clear_graphics_view
-import joblib
+from face_recognition import face_recognition_
 
 
 class MainWindow(QMainWindow):
@@ -32,14 +32,9 @@ class MainWindow(QMainWindow):
 
 
     def handle_apply(self):
-        pca = joblib.load("model/pca_model.joblib")
-        clf = joblib.load("model/svm_model.joblib")
-        le = joblib.load("model/label_encoder.joblib")
-        img_pca = pca.transform(self.input_image.reshape(1, -1))
-        pred_enc = clf.predict(img_pca)
-        pred_label = le.inverse_transform(pred_enc)[0]
-        print("Predicted person:", pred_label)
         
+        # print("Predicted person:", pred_label)
+        face_recognition_(query_image_path=self.img_path)
         self.output_img = cv2.imread(self.img_path) 
         ## edit here to draw  rectangle based on faced and show the predicted label on it
         display_image_Graphics_scene(self.output_img1_GV, self.output_img)

@@ -12,11 +12,8 @@ def read_rgb(image_path, gray=False, normalize=False):
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return img
 
-def detect_faces(image_path):
-    # Use a grayscale image for detection.
-    gray_image = read_rgb(image_path, gray=True, normalize=False)
-    # Load the pre-trained classifier for faces
-def detect_faces(image_input):
+
+def detect_faces(image_input, min_neighbors=5, scale_factor=1.05):
     """
     Detect faces in an image from either a file path or an image array.
     """
@@ -39,14 +36,14 @@ def detect_faces(image_input):
     face_cascade = cv2.CascadeClassifier(
         cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
     )
-    faces = face_cascade.detectMultiScale(gray_image, scaleFactor=1.05, minNeighbors=5)
+    faces = face_cascade.detectMultiScale(gray_image, scale_factor, min_neighbors)
     return faces
 
-def draw_faces(image_path):
+def draw_faces(image_path, min_neighbors=5, scale_factor=1.05):
     # Read the original colored image.
     colored_image = read_rgb(image_path, gray=False, normalize=False)
     # Detect faces using the grayscale version.
-    faces = detect_faces(image_path)
+    faces = detect_faces(image_path, min_neighbors=min_neighbors, scale_factor=scale_factor)
 
     # For each detected face, draw a rectangle on the image.
     for (x, y, w, h) in faces:

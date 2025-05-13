@@ -33,6 +33,13 @@ class MainWindow(QMainWindow):
             lambda : self.num_pca_label.setText(f"{self.num_pca_slider.value()}"))
         self.threshold_slider.valueChanged.connect(
             lambda : self.threshold_label.setText(f"{self.threshold_slider.value()}"))
+        
+        self.min_neighbors_slider.valueChanged.connect(
+            lambda : self.min_neighbors_label.setText(f"{self.min_neighbors_slider.value()}"))
+        self.scale_factor_slider.valueChanged.connect(
+            lambda : self.scale_factor_label.setText(f"{self.scale_factor_slider.value()/100}"))
+        
+    
 
     def doubleClickHandler(self, event, widget):
         self.img_path = load_pixmap_to_label(widget)
@@ -48,7 +55,9 @@ class MainWindow(QMainWindow):
 
     def handle_detect(self):
         print("Apply button clicked")
-        annotated_img = draw_faces(self.img_path)
+        print("scale_factor:", self.scale_factor_slider.value()/100)
+        print("min_neighbors:", self.min_neighbors_slider.value())
+        annotated_img = draw_faces(self.img_path,  self.min_neighbors_slider.value(),self.scale_factor_slider.value()/100)
         
         display_image_Graphics_scene(self.output_img1_GV, annotated_img)
 

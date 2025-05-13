@@ -17,7 +17,7 @@ import io
 def load_pixmap_to_label(label: QLabel):
     options = QFileDialog.Options()
     file_path, _ = QFileDialog.getOpenFileName(None, "Open Image File", "",
-                                               "Images (*.png *.jpg *.jpeg *.bmp *.gif);;All Files (*)",
+                                               "Images (*.png *.jpg *.jpeg *.bmp *.gif *.pgm);;All Files (*)",
                                                options=options)
 
     if file_path:

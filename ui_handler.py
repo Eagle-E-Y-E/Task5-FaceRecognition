@@ -6,9 +6,8 @@ from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import Qt
 import cv2
 from utils import load_pixmap_to_label, display_image_Graphics_scene, enforce_slider_step, show_histogram_on_label, clear_graphics_view
-import joblib
-# from face_recognition import recognize_single_face
-from FINAL import recognize_faces
+from faceRecognition import recognize_faces
+from faceDetection import draw_faces
 
 
 
@@ -26,7 +25,7 @@ class MainWindow(QMainWindow):
             event, self.input_img_Rec)
         
         # connect buttons
-        self.apply_btn.clicked.connect(self.handle_apply)
+        self.apply_btn.clicked.connect(self.handle_detect)
         self.apply_btn_Rec.clicked.connect(self.handle_recognize)
 
         # sliders
@@ -47,21 +46,27 @@ class MainWindow(QMainWindow):
             
 
 
-    def handle_apply(self):
+    def handle_detect(self):
         print("Apply button clicked")
+        annotated_img = draw_faces(self.img_path)
         
-        # print("Predicted person:", pred_label)
-        # face_recognition_(query_image_path=self.img_path)
-        # self.output_img = cv2.imread(self.img_path) 
-        # ## edit here to draw  rectangle based on faced and show the predicted label on it
-        # display_image_Graphics_scene(self.output_img1_GV, self.output_img)
+        display_image_Graphics_scene(self.output_img1_GV, annotated_img)
 
     def handle_recognize(self):
-        pred,dist = recognize_faces(single_img_path=self.img_path,
-                        num_components=self.num_pca_slider.value(),
-                        threshold=self.threshold_slider.value())
+        # Get prediction, distance, and the similar training image
+        pred, dist, sim_img = recognize_faces(
+            single_img_path=self.img_path,
+            num_components=self.num_pca_slider.value(),
+            threshold=self.threshold_slider.value()
+        )
         self.reult_label.setText(pred)
-        self.distance_label.setText(f"distance: {dist:.2f}")
+        self.distance_label.setText(f"Distance: {dist:.2f}")
+        
+        # Display the similar image if available.
+        # Here we assume you have a function to display images in your GUI.
+        if sim_img is not None:
+            display_image_Graphics_scene(self.output_img_Rec, sim_img)
+
         
 
                 

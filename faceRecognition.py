@@ -14,7 +14,7 @@ def recognize_faces(
     threshold=4000
 ):
     def load_images_labels(folder, image_size=(64, 64)):
-        X, y = [], []
+        X, y, paths = [], [], []
         for label in sorted(os.listdir(folder)):
             person_dir = os.path.join(folder, label)
             if not os.path.isdir(person_dir):
@@ -24,42 +24,54 @@ def recognize_faces(
                 img = cv2.imread(fpath, cv2.IMREAD_GRAYSCALE)
                 if img is None:
                     continue
-                img = cv2.resize(img, image_size)
-                X.append(img.flatten())
+                img_resized = cv2.resize(img, image_size)
+                X.append(img_resized.flatten())
                 y.append(label)
-        return np.array(X), np.array(y)
+                paths.append(fpath)
+        return np.array(X), np.array(y), paths
 
-    def predict_single_image(img_path, pca_, X_train_pca_, y_train_enc, le, threshold=4000):
+
+    def predict_single_image(img_path, pca_, X_train_pca_, y_train_enc, le, train_paths, image_size, threshold=4000):
+        # Load and preprocess the query image
         img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
         img = cv2.resize(img, image_size)
         img_flat = img.flatten().reshape(1, -1)
         img_pca = pca_.transform(img_flat)
+        
+        # Compute distances in the reduced PCA space
         dists = np.sqrt(np.sum((X_train_pca_ - img_pca) ** 2, axis=1))
         min_idx = np.argmin(dists)
         min_dist = dists[min_idx]
+        
         if min_dist < threshold:
             pred_label_enc = y_train_enc[min_idx]
             pred_label = le.inverse_transform([pred_label_enc])[0]
+            # Load the similar image from disk using the stored path, then resize appropriately
+            similar_img = cv2.imread(train_paths[min_idx], cv2.IMREAD_GRAYSCALE)
+            similar_img = cv2.resize(similar_img, image_size)
         else:
             pred_label = "unknown"
-        return pred_label, min_dist
+            similar_img = cv2.imread("images/unknown.jpg")
+        
+        return pred_label, min_dist, similar_img
 
-    # Load data
-    X_train, y_train = load_images_labels(train_dir, image_size)
-    X_test, y_test = load_images_labels(test_dir, image_size)
 
-    # Encode labels
+    # Load the training and test data along with file paths for training images
+    X_train, y_train, train_paths = load_images_labels(train_dir, image_size)
+    X_test, y_test, _ = load_images_labels(test_dir, image_size)
+
+    # Encode labels for training/testing
     le = LabelEncoder()
     y_train_enc = le.fit_transform(y_train)
     y_test_enc = le.transform(y_test)
 
-    # PCA
+    # PCA transform on training data
     pca_ = PCA_(num_components=num_components)
     pca_.fit(X_train)
     X_train_pca_ = pca_.transform(X_train)
     X_test_pca_ = pca_.transform(X_test)
 
-    # Euclidean NN with threshold
+    # Test set evaluation (Euclidean NN using threshold)
     y_pred_euclid_thresh = []
     for test_vec in X_test_pca_:
         dists = np.sqrt(np.sum((X_train_pca_ - test_vec) ** 2, axis=1))
@@ -78,10 +90,12 @@ def recognize_faces(
         print("No known predictions (all classified as unknown).")
     print(f"Unknown predictions: {(~mask_known).sum()} out of {len(y_pred_euclid_thresh)}")
 
-    # Predict single image if path provided
+    # Predict a single query image and return the similar training image if provided
     if single_img_path:
-        pred, dist = predict_single_image(single_img_path, pca_, X_train_pca_, y_train_enc, le, threshold)
+        pred, dist, similar_img = predict_single_image(
+            single_img_path, pca_, X_train_pca_, y_train_enc, le, train_paths, image_size, threshold
+        )
         print(f"Predicted label: {pred}, Distance: {dist}")
-        return pred, dist
+        return pred, dist, similar_img
 
-    return 
+    return
